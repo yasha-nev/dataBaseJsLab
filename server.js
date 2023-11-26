@@ -1,7 +1,12 @@
 var fs = require("fs");
 var http = require("http");
-var sqlite3 = require("sqlite3").verbose();
-var db = new sqlite3.Database("students.db");
+var cassandra = require('cassandra-driver');
+
+const contactPoints = ['127.0.0.1'];
+const localDataCenter = 'datacenter1';
+const keyspace = 'mykeyspace';
+
+const client = new cassandra.Client({ contactPoints, localDataCenter, keyspace });
 
 http.createServer(function (request, response) {
     var str = request.url.split('=');
@@ -26,53 +31,22 @@ http.createServer(function (request, response) {
         case "/?fname":
             switch(str[1]){
                 case "all":
-                    db.all("SELECT * FROM STUDENT", function(err, rows) { 
-                        if(err) {
-                            student = {
-                                name: 'no',
-                                grp: 'no'
-                            }
-                            response.write(JSON.stringify(student));
-                        } else {
-                            arr = []
-                            for(var i = 0; i < rows.length; i++) {
-                                var row = rows[i];
-                                student = {
-                                    name: row.name,
-                                    grp: row.grp
-                                }
-                                arr.push(student);
-                            }
-                            response.write(JSON.stringify(arr));
-                        }
-                        response.end(); 
+                    var query = 'SELECT * FROM student';
+                    client.execute(query, function (err, result) { 
+                        arr = getStudentFromDb(err, result)
+                        response.write(JSON.stringify(arr));
+                        response.end()
                     });
                     break;
                 default:
                     arr = []
                     var name = str[1];
-
-                    db.serialize(function() {
-                        var stmt = db.prepare("SELECT * FROM STUDENT WHERE name=?");
-                        stmt.each(name, function(err, row) {
-                            student = {
-                                name: row.name,
-                                grp: row.grp
-                            };
-                            arr.push(student);
-                        }, function(err, count) {
-                            stmt.finalize();
-                            if (err){
-                                student = {
-                                    name: "no",
-                                    grp: "no"
-                                };
-                                arr.push(student)
-                            }
-                            response.write(JSON.stringify(arr));
-                            response.end()
-                        });
-                      
+                    var query = "SELECT * FROM student WHERE name = ?"
+                    const params = [name];
+                    client.execute(query, params, { prepare: true }, function (err, result) {
+                        arr = getStudentFromDb(err, result)
+                        response.write(JSON.stringify(arr));
+                        response.end()
                     });
                     break;
             }
@@ -96,4 +70,25 @@ http.createServer(function (request, response) {
     }).listen(3000);
 
 console.log("Server running at http://localhost:3000/");
-  
+
+
+function getStudentFromDb(err, result){
+    arr = []
+    if (!err){
+        for (let i of result){
+            student = {
+                name: i.name,
+                grp: i.grp
+            }
+            arr.push(student);
+        }
+    } else {
+        student = {
+            name: 'no',
+            grp: 'no'
+        }
+        arr.push(student);
+    }
+
+    return arr;
+}
