@@ -1,14 +1,32 @@
 var fs = require("fs");
 var http = require("http");
-var cassandra = require('cassandra-driver');
+const MongoClient = require("mongodb").MongoClient;
 
-const contactPoints = ['127.0.0.1'];
-const localDataCenter = 'datacenter1';
-const keyspace = 'mykeyspace';
+const url = "mongodb://127.0.0.1:27017/";
+const mongoClient = new MongoClient(url);
 
-const client = new cassandra.Client({ contactPoints, localDataCenter, keyspace });
+var db = mongoClient.connect(url);
 
-http.createServer(function (request, response) {
+async function getStudent(){
+    let result = await mongoClient.connect();
+    let db = result.db("studentdb");
+    let collection = db.collection('student');
+    let response = await collection.find({}).toArray();
+    
+    return response
+}
+
+async function getStudentByName(nm){
+    let result = await mongoClient.connect();
+    let db = result.db("studentdb");
+    let collection = db.collection('student');
+    let response = await collection.find({name: nm}).toArray();
+    
+    return response
+}
+
+
+http.createServer(async function (request, response) {
     var str = request.url.split('=');
     
     switch(str[0]) { 
@@ -29,25 +47,19 @@ http.createServer(function (request, response) {
             break;
 
         case "/?fname":
+            var all = []
             switch(str[1]){
                 case "all":
-                    var query = 'SELECT * FROM student';
-                    client.execute(query, function (err, result) { 
-                        arr = getStudentFromDb(err, result)
-                        response.write(JSON.stringify(arr));
-                        response.end()
-                    });
+                    arr = await getStudent();
+                    response.write(JSON.stringify(arr));
+                    response.end();
                     break;
+
                 default:
-                    arr = []
-                    var name = str[1];
-                    var query = "SELECT * FROM student WHERE name = ?"
-                    const params = [name];
-                    client.execute(query, params, { prepare: true }, function (err, result) {
-                        arr = getStudentFromDb(err, result)
-                        response.write(JSON.stringify(arr));
-                        response.end()
-                    });
+                    arr = await getStudentByName(str[1])
+
+                    response.write(JSON.stringify(arr));
+                    response.end()
                     break;
             }
             break;
@@ -67,28 +79,8 @@ http.createServer(function (request, response) {
                     "</html>\n");
         }
 
-    }).listen(3000);
+}).listen(3000);
 
 console.log("Server running at http://localhost:3000/");
 
 
-function getStudentFromDb(err, result){
-    arr = []
-    if (!err){
-        for (let i of result){
-            student = {
-                name: i.name,
-                grp: i.grp
-            }
-            arr.push(student);
-        }
-    } else {
-        student = {
-            name: 'no',
-            grp: 'no'
-        }
-        arr.push(student);
-    }
-
-    return arr;
-}

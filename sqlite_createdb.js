@@ -1,58 +1,56 @@
 //brew services start cassandra  
 //brew services stop cassandra  
 
-const cassandra = require('cassandra-driver');
-const Uuid = cassandra.types.Uuid;
+const MongoClient = require("mongodb").MongoClient;
+const url = "mongodb://127.0.0.1:27017/";
+const mongoClient = new MongoClient(url);
 
-const contactPoints = ['127.0.0.1'];
-const localDataCenter = 'datacenter1';
-const keyspace = 'mykeyspace';
 
-const client = new cassandra.Client({ contactPoints, localDataCenter });
-
-async function createDatabaseAndTable() {
+async function run() {
   try {
-    await client.connect();
+      await mongoClient.connect();
 
-    const createKeyspaceQuery = "CREATE KEYSPACE IF NOT EXISTS " + keyspace +
-      " WITH replication = {" +
-        "'class': 'SimpleStrategy'," +
-        "'replication_factor': 1" +
-      "};"
+      const db = mongoClient.db("studentdb");
+      const collection = db.collection("student");
 
-    await client.execute(createKeyspaceQuery);
-    await client.execute("USE " + keyspace);
+      await collection.insertMany([
+        {
+          name: 'yasha',
+          grp: '20pm'
+        },
+        {
+          name: 'egor',
+          grp: '20pm'
+        },
+        {
+          name: 'kirill',
+          grp: '20pm'
+        },
+        {
+          name: 'vera',
+          grp: '20pm'
+        },
+        {
+          name: 'yasha',
+          grp: '20pm'
+        },
+        {
+          name: 'yasha',
+          grp: '20pm'
+        },
+        {
+          name: 'yasha',
+          grp: '20pm'
+        }
+      ]);
 
-    const dropTable = "DROP TABLE IF EXISTS " +  keyspace + ".student"
+      const count = await collection.countDocuments();
+      console.log(`В коллекции users ${count} документов`);
 
-    await client.execute(dropTable)
-
-    // Создание таблицы
-    const createTableQuery = "CREATE TABLE IF NOT EXISTS " + keyspace + ".student (" +
-      "id UUID PRIMARY KEY," +
-      "name TEXT," +
-      "grp TEXT" +
-    ");"
-
-    await client.execute(createTableQuery);
-
-    const index = "CREATE INDEX name_key ON " + keyspace + ".student (name);"
-
-    await client.execute(index);
-
-    const createStudent = "INSERT INTO " + keyspace + ".student(id, name, grp) VALUES (?, ?, ?)"
-
-    await client.execute(createStudent, [Uuid.random(), "yasha", "20pm"], { prepare: true })
-    await client.execute(createStudent, [Uuid.random(), "egor", "20pm"], { prepare: true })
-    await client.execute(createStudent, [Uuid.random(), "kiril", "20pm"], { prepare: true })
-    await client.execute(createStudent, [Uuid.random(), "vera", "20pm"], { prepare: true })
-    await client.execute(createStudent, [Uuid.random(), "yasha", "20pm"], { prepare: true })
-    await client.execute(createStudent, [Uuid.random(), "yasha", "20pm"], { prepare: true })
-
-    console.log('База данных и таблица успешно созданы!');
+  }catch(err) {
+      console.log(err);
   } finally {
-    await client.shutdown();
+      await mongoClient.close();
   }
 }
-
-createDatabaseAndTable().catch(console.error);
+run().catch(console.error);
