@@ -1,56 +1,31 @@
-//brew services start cassandra  
-//brew services stop cassandra  
+// brew services start neo4j
+// brew services stop neo4j
 
-const MongoClient = require("mongodb").MongoClient;
-const url = "mongodb://127.0.0.1:27017/";
-const mongoClient = new MongoClient(url);
+const neo4j = require('neo4j-driver'); 
+const driver = neo4j.driver('neo4j://localhost:7687', neo4j.auth.basic('neo4j', '12345678')); 
 
-
-async function run() {
+async function createDatabase() { 
+  const session = driver.session(); 
   try {
-      await mongoClient.connect();
 
-      const db = mongoClient.db("studentdb");
-      const collection = db.collection("student");
+    //const result = await session.run(
+    //  'MATCH (n:Student) DELETE n'
+    //);
 
-      await collection.insertMany([
-        {
-          name: 'yasha',
-          grp: '20pm'
-        },
-        {
-          name: 'egor',
-          grp: '20pm'
-        },
-        {
-          name: 'kirill',
-          grp: '20pm'
-        },
-        {
-          name: 'vera',
-          grp: '20pm'
-        },
-        {
-          name: 'yasha',
-          grp: '20pm'
-        },
-        {
-          name: 'yasha',
-          grp: '20pm'
-        },
-        {
-          name: 'yasha',
-          grp: '20pm'
-        }
-      ]);
 
-      const count = await collection.countDocuments();
-      console.log(`В коллекции users ${count} документов`);
-
-  }catch(err) {
-      console.log(err);
-  } finally {
-      await mongoClient.close();
-  }
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "yasha", grp: "20pm"});
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "egor", grp: "20pm"});
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "vera", grp: "20pm"});
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "kirill", grp: "20pm"});
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "yasha", grp: "20pm"});
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "yasha", grp: "20pm"});
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "yasha", grp: "20pm"});
+    await session.run('CREATE (a:Student {name: $name, grp: $grp}) RETURN a', {name: "yasha", grp: "20pm"});
+    
+    } 
+  finally { 
+    await session.close(); 
+  } 
 }
-run().catch(console.error);
+
+createDatabase()

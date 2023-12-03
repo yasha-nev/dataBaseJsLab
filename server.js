@@ -1,34 +1,56 @@
+
 var fs = require("fs");
 var http = require("http");
-const MongoClient = require("mongodb").MongoClient;
+const neo4j = require('neo4j-driver'); 
+const driver = neo4j.driver('neo4j://localhost:7687', neo4j.auth.basic('neo4j', '12345678')); 
+const session = driver.session(); 
 
-const url = "mongodb://127.0.0.1:27017/";
-const mongoClient = new MongoClient(url);
-
-var db = mongoClient.connect(url);
 
 async function getStudent(){
-    let result = await mongoClient.connect();
-    let db = result.db("studentdb");
-    let collection = db.collection('student');
-    let response = await collection.find({}).toArray();
-    
-    return response
+    //let n = await driver.executeQuery('MATCH (n:Student) RETURN n')
+
+    arr = []
+    let { records, summary } = await driver.executeQuery(
+    'MATCH (s:Student) RETURN s.name AS name, s.grp AS grp',
+    {},
+    { database: 'neo4j' }
+    )
+
+    for(let record of records) {  
+        arr.push({
+            name: record.get('name'),
+            grp: record.get('grp')
+        })
+    }
+    return arr;
 }
 
 async function getStudentByName(nm){
-    let result = await mongoClient.connect();
-    let db = result.db("studentdb");
-    let collection = db.collection('student');
-    let response = await collection.find({name: nm}).toArray();
-    
-    return response
+    arr = []
+    let { records, summary } = await driver.executeQuery(
+    "MATCH (s:Student WHERE s.name = $name) RETURN s.name AS name, s.grp AS grp",
+    {name: nm},
+    { database: 'neo4j' }
+    )
+
+    for(let record of records) {  
+        arr.push({
+            name: record.get('name'),
+            grp: record.get('grp')
+        })
+    }
+
+    console.log(arr);
+
+    return arr;
 }
 
 
 http.createServer(async function (request, response) {
     var str = request.url.split('=');
     
+    console.log(request.url)
+
     switch(str[0]) { 
         case "/":
             var fileStream = fs.createReadStream("./demo.html", "UTF-8");
@@ -51,6 +73,7 @@ http.createServer(async function (request, response) {
             switch(str[1]){
                 case "all":
                     arr = await getStudent();
+
                     response.write(JSON.stringify(arr));
                     response.end();
                     break;
